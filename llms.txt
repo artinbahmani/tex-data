@@ -5,7 +5,7 @@
 
 ## What is here
 - 113,598 registered residential sales in 2026, median AED 1,724 per sqft, median price AED 1,400,000
-- 473,600 registered Ejari tenancy contracts, median annual rent AED 67,000
+- 430,432 registered Ejari tenancy contracts, median annual rent AED 65,000
 - 131 districts, 400 buildings, gross rental yields, lease expiries, daily reports
 
 ## Key pages
