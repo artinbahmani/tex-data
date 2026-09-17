@@ -93,8 +93,10 @@
     map.addSource("a2", { type: "geojson", data: POLY });
     map.addLayer({ id: "a2-fill", type: "fill", source: "a2",
       paint: { "fill-color": ["get", "c"],
-               "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], .82,
-                                ["==", ["get", "dim"], 1], .14, .58] } });
+               "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], .84,
+                                ["==", ["get", "dim"], 1], .12, .6],
+               "fill-opacity-transition": { duration: 180 },
+               "fill-color-transition": { duration: 260 } } });
     map.addLayer({ id: "a2-line", type: "line", source: "a2",
       paint: { "line-color": ["case", ["boolean", ["feature-state", "hover"], false], C.PAL.accentHi, C.PAL.border],
                "line-width": ["case", ["boolean", ["feature-state", "hover"], false], 2.2, .8] } });

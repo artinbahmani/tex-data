@@ -1,5 +1,5 @@
 /* ============================================================================
-   TEX & TEX — Dubai Property Map. v3, 2026-09-17.
+   TEX & TEX — Dubai Property Map. v4, 2026-09-18.
    Two modes like the reference product, built on MapLibre + free OpenFreeMap tiles:
      Areas    — district choropleth (real OSM boundaries) + a slide-in district panel
      Projects — the dark 3D city (real extruded buildings) + project markers
@@ -12,93 +12,26 @@
   var map, MODE = "areas", METRIC = "psf", THREE_D = true, SEL = [];
   var AREAS = [], PROJECTS = [], POLY = null, CFG = {};
 
-  /* Dubai + a little breathing room. Stops the user from zooming out to the ocean. */
-  var BOUNDS = [[54.55, 24.55], [56.15, 25.80]];
-  var HOME = { center: [55.21, 25.09], zoom: 9.6, pitch: 55, bearing: -18 };
+  var C = window.TEXCORE;
+  /* Palette, scale and base-style repaint all live in texcore.js, shared with the
+     rental, benchmark and villa maps. One place decides what a colour means. */
+  var BOUNDS = C.BOUNDS, HOME = C.HOME;
 
   var METRICS = {
-    psf:    { k: "psf",    label: "Price per sqft",   fmt: function (v) { return "AED " + TEX.full(v); }, dir: "hi" },
-    price:  { k: "price",  label: "Median price",     fmt: function (v) { return "AED " + TEX.full(v); }, dir: "hi" },
-    sales:  { k: "sales",  label: "Sales volume",     fmt: function (v) { return TEX.full(v); },          dir: "hi" },
-    val:    { k: "val",    label: "Money transacted", fmt: function (v) { return "AED " + TEX.fmt(v); },  dir: "hi" },
-    yld:    { k: "yld",    label: "Gross yield",      fmt: function (v) { return v + "%"; },              dir: "hi" },
-    rent:   { k: "rent",   label: "Typical rent",     fmt: function (v) { return "AED " + TEX.full(v); }, dir: "hi" },
-    exp90:  { k: "exp90",  label: "Leases expiring",  fmt: function (v) { return TEX.full(v); },          dir: "hi" },
-    off:    { k: "off",    label: "Off-plan share",   fmt: function (v) { return v + "%"; },              dir: "hi" }
+    psf:    { k: "psf",    label: "Price per sqft",   fmt: C.fmtAED,   dir: "hi" },
+    price:  { k: "price",  label: "Median price",     fmt: C.fmtAED,   dir: "hi" },
+    sales:  { k: "sales",  label: "Sales volume",     fmt: C.fmtNum,   dir: "hi" },
+    val:    { k: "val",    label: "Money transacted", fmt: C.fmtShort, dir: "hi" },
+    yld:    { k: "yld",    label: "Gross yield",      fmt: C.fmtPct,   dir: "hi" },
+    rent:   { k: "rent",   label: "Typical rent",     fmt: C.fmtAED,   dir: "hi" },
+    exp90:  { k: "exp90",  label: "Leases expiring",  fmt: C.fmtNum,   dir: "hi" },
+    off:    { k: "off",    label: "Off-plan share",   fmt: C.fmtPct,   dir: "hi" }
   };
 
-  /* cool → warm ramp, anchored on the TEX copper in the middle */
-  function ramp(t) {
-    var st = [[0, [58, 96, 152]], [.28, [98, 160, 198]], [.52, [211, 161, 136]], [.76, [228, 138, 94]], [1, [202, 66, 45]]];
-    t = Math.max(0, Math.min(1, t));
-    for (var i = 1; i < st.length; i++) {
-      if (t <= st[i][0]) {
-        var a = st[i - 1], b = st[i], k = (t - a[0]) / (b[0] - a[0]);
-        return "rgb(" + a[1].map(function (c, j) { return Math.round(c + (b[1][j] - c) * k); }).join(",") + ")";
-      }
-    }
-    return "rgb(202,66,45)";
-  }
-  function vals(rows) {
-    return rows.map(function (r) { return +r[METRIC] || 0; }).filter(function (v) { return v > 0; });
-  }
-  function stats(rows) {
-    var v = vals(rows).sort(function (a, b) { return a - b; });
-    if (!v.length) return { mn: 0, mx: 1, avg: 0, sorted: [] };
-    return { mn: v[0], mx: v[v.length - 1],
-             avg: v.reduce(function (a, b) { return a + b; }, 0) / v.length, sorted: v };
-  }
-  /* percentile position of a value inside the set, so colour shows RANK not raw distance.
-     A linear ramp put 90% of Dubai in the same blue because a few prime districts stretch it. */
-  function pct(v, s) {
-    var a = s.sorted, lo = 0, hi = a.length;
-    while (lo < hi) { var m = (lo + hi) >> 1; if (a[m] < v) lo = m + 1; else hi = m; }
-    return a.length > 1 ? lo / (a.length - 1) : .5;
-  }
-
-  /* ── repaint the light base style into the TEX night palette ── */
-  function darken() {
-    (map.getStyle().layers || []).forEach(function (L) {
-      var id = L.id, t = L.type;
-      try {
-        if (t === "background") map.setPaintProperty(id, "background-color", "#06060a");
-        else if (t === "fill") {
-          var c = "#0d0d13";
-          if (/water|ocean|sea|river|lake|bay/i.test(id)) c = "#081420";
-          else if (/park|grass|wood|forest|golf|garden|scrub|cemetery|pitch/i.test(id)) c = "#0a1310";
-          else if (/sand|beach|desert/i.test(id)) c = "#12100d";
-          else if (/building/i.test(id)) c = "#14141b";
-          else if (/aeroway|airport|runway|apron/i.test(id)) c = "#0e0e14";
-          else if (/residential|landuse|industrial|commercial/i.test(id)) c = "#0b0b11";
-          map.setPaintProperty(id, "fill-color", c);
-        } else if (t === "line") {
-          var lc = "#191921";
-          if (/motorway|trunk/i.test(id)) lc = "#39373f";
-          else if (/primary/i.test(id)) lc = "#2c2b33";
-          else if (/secondary|tertiary/i.test(id)) lc = "#23222a";
-          else if (/water|river/i.test(id)) lc = "#0b1826";
-          else if (/boundary|admin/i.test(id)) lc = "rgba(211,161,136,.20)";
-          else if (/rail|transit|aeroway/i.test(id)) lc = "#1e1e27";
-          map.setPaintProperty(id, "line-color", lc);
-        } else if (t === "symbol") {
-          map.setPaintProperty(id, "text-color", "rgba(255,255,255,.46)");
-          map.setPaintProperty(id, "text-halo-color", "rgba(0,0,0,.9)");
-          map.setPaintProperty(id, "text-halo-width", 1.3);
-          if (/poi|shop|amenity|housenum/i.test(id)) map.setLayoutProperty(id, "visibility", "none");
-        } else if (t === "fill-extrusion") {
-          /* the real city: light grey volumes reading as a physical model against the dark ground */
-          map.setPaintProperty(id, "fill-extrusion-color", [
-            "interpolate", ["linear"], ["get", "render_height"],
-            0, "#24242c", 60, "#33333d", 160, "#45454f", 400, "#5c5c66"
-          ]);
-          map.setPaintProperty(id, "fill-extrusion-opacity", .92);
-          map.setPaintProperty(id, "fill-extrusion-vertical-gradient", true);
-          /* show the model earlier than the style's default z14 so it reads at district zoom */
-          map.setLayerZoomRange(id, 11.8, 24);
-        }
-      } catch (e) {}
-    });
-  }
+  function ramp(t) { return C.ramp(t); }
+  function stats(rows) { return C.stats(rows.map(function (r) { return { v: +r[METRIC] || 0 }; }), "v"); }
+  function pct(v, s) { return C.pct(v, s); }
+  function darken() { C.darken(map); }
 
   /* ── AREAS mode: real district polygons, coloured by the metric ── */
   function buildAreas() {
@@ -107,7 +40,7 @@
     POLY.features.forEach(function (f) {
       var a = by[f.properties.dld] || {};
       var v = +a[METRIC] || 0;
-      f.properties.c = v ? ramp(pct(v, s)) : "#16161d";
+      f.properties.c = v ? ramp(pct(v, s)) : C.PAL.nodata;
       f.properties.v = v;
       f.properties.name = a.n || f.properties.dld;
       f.properties.s = a.s || "";
@@ -120,7 +53,10 @@
     if (src) { src.setData(POLY); legend(s); return; }
     map.addSource("areas", { type: "geojson", data: POLY });
     map.addLayer({ id: "area-fill", type: "fill", source: "areas",
-      paint: { "fill-color": ["get", "c"], "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], .88, .66] } });
+      paint: { "fill-color": ["get", "c"],
+               "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], .84, .6],
+               "fill-opacity-transition": { duration: 180 },
+               "fill-color-transition": { duration: 260 } } });
     map.addLayer({ id: "area-line", type: "line", source: "areas",
       paint: { "line-color": ["case", ["boolean", ["feature-state", "hover"], false], "#f0cdb4", "rgba(211,161,136,.45)"],
                "line-width": ["case", ["boolean", ["feature-state", "hover"], false], 2.2, .9] } });
@@ -190,17 +126,8 @@
     legend(s);
   }
 
-  /* ── legend: gradient + the three reference values, like the reference product ── */
-  function legend(s) {
-    var m = METRICS[METRIC];
-    var el = document.getElementById("lg");
-    if (!el) return;
-    el.innerHTML =
-      '<div class="lgbar"><span>Low</span><i></i><b>' + m.label + '</b><span>High</span></div>' +
-      '<div class="lgrow"><em style="background:rgb(202,66,45)"></em>Highest<b>' + m.fmt(Math.round(s.mx)) + '</b></div>' +
-      '<div class="lgrow"><em style="background:rgb(211,161,136)"></em>Median<b>' + m.fmt(Math.round(s.sorted[Math.floor(s.sorted.length/2)] || s.avg)) + '</b></div>' +
-      '<div class="lgrow"><em style="background:rgb(58,96,152)"></em>Lowest<b>' + m.fmt(Math.round(s.mn)) + '</b></div>';
-  }
+  /* ── legend: shared with every other map ── */
+  function legend(s) { C.legend("lg", METRICS[METRIC].label, s, METRICS[METRIC].fmt); }
 
   /* ── slide-in detail panel ── */
   function row(k, v) { return '<div class="row"><span>' + k + "</span><b>" + v + "</b></div>"; }
@@ -282,12 +209,13 @@
     CFG = cfg; AREAS = cfg.areas; PROJECTS = cfg.projects; POLY = cfg.poly;
     POLY.features.forEach(function (f, i) { f.id = i; });
     map = new maplibregl.Map({
-      container: "map", style: "https://tiles.openfreemap.org/styles/liberty",
+      container: "map", style: C.STYLE,
       center: HOME.center, zoom: HOME.zoom, pitch: HOME.pitch, bearing: HOME.bearing,
       maxBounds: BOUNDS, minZoom: 8.6, maxZoom: 17.5, maxPitch: 75,
       antialias: true, attributionControl: { compact: true }
     });
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
+    C.observeResize(map);
     map.on("style.load", function () {
       darken(); buildAreas(); setMode(MODE);
       var spin = true, t0 = performance.now();

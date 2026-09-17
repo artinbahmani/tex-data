@@ -20,29 +20,34 @@
      fills is what makes a data map tiring to look at. Data colour is the only
      thing on the page allowed to be vivid.                                   */
   C.PAL = {
-    ground:   "#0e0f14",   /* base canvas: charcoal, not black */
-    land:     "#141620",
-    water:    "#0f1b28",
-    green:    "#121a16",
-    sand:     "#181611",
-    aero:     "#141620",
-    bldgFlat: "#1b1e27",
-    roadHi:   "#3a3945",
-    road2:    "#2c2b36",
-    road3:    "#23222c",
-    roadMin:  "#1b1a23",
-    rail:     "#20202a",
-    border:   "rgba(211,161,136,.22)",
-    ink:      "rgba(236,232,228,.52)",
-    inkHalo:  "rgba(8,9,12,.92)",
-    nodata:   "#191b23",
+    /* Charcoal, not black. A near-black ground under saturated fills is what makes a
+       data map tiring, and it also crushes the 3D city into a silhouette. Measured
+       against the reference product, which sits its whole map on #292929.          */
+    ground:   "#1b1d23",
+    land:     "#212430",
+    water:    "#151d28",
+    green:    "#1a2420",
+    sand:     "#252219",
+    aero:     "#2a2d36",
+    bldgFlat: "#262932",
+    roadHi:   "#464954",
+    road2:    "#383b45",
+    road3:    "#2e313a",
+    roadMin:  "#26282f",
+    rail:     "#2a2c34",
+    border:   "rgba(211,161,136,.26)",
+    ink:      "rgba(238,235,231,.58)",
+    inkHalo:  "rgba(12,13,17,.94)",
+    nodata:   "#23262f",
     accent:   "#d3a188",   /* TEX copper */
     accentHi: "#f0cdb4"
   };
 
-  /* Extruded buildings. Kept as a narrow, low-chroma grey band so the city reads
-     as a physical model and never competes with the data colour on top of it. */
-  C.BLDG = { lo: "#252831", mid: "#2f3340", hi: "#3b4050", top: "#4a5062", opacity: 0.88 };
+  /* Extruded buildings: ONE flat grey at partial opacity, with no height ramp and no
+     vertical gradient. Measured off the reference product, which does exactly this and
+     is right to: with no colour on the buildings, the only chromatic thing on screen is
+     the data. A height ramp competes with the choropleth for the same attention.     */
+  C.BLDG = { color: "#a9a9a9", opacity: 0.58 };
 
   /* ── the data ramp ────────────────────────────────────────────────────────
      Sequential, single-family, cool to warm through the TEX copper. Lightness
@@ -116,12 +121,16 @@
           map.setPaintProperty(id, "text-color", P.ink);
           map.setPaintProperty(id, "text-halo-color", P.inkHalo);
           map.setPaintProperty(id, "text-halo-width", 1.3);
-          if (/poi|shop|amenity|housenum/i.test(id)) map.setLayoutProperty(id, "visibility", "none");
+          /* Label restraint. Every free style ships every POI and every side street, and
+             on a tilted 3D scene they pile up at the horizon into grey soup. Points of
+             interest go entirely; street names only appear once you are actually in a
+             street; place names stay, because they are how you navigate.              */
+          if (/poi|shop|amenity|housenum|transit|airport|water-(point|line)/i.test(id))
+            map.setLayoutProperty(id, "visibility", "none");
+          else if (/road|street|highway|motorway/i.test(id))
+            map.setLayerZoomRange(id, 14.5, 24);
         } else if (t === "fill-extrusion") {
-          map.setPaintProperty(id, "fill-extrusion-color", [
-            "interpolate", ["linear"], ["get", "render_height"],
-            0, C.BLDG.lo, 60, C.BLDG.mid, 160, C.BLDG.hi, 400, C.BLDG.top
-          ]);
+          map.setPaintProperty(id, "fill-extrusion-color", C.BLDG.color);
           map.setPaintProperty(id, "fill-extrusion-opacity", C.BLDG.opacity);
           map.setPaintProperty(id, "fill-extrusion-vertical-gradient", true);
           /* show the model earlier than the style default (z14) so it reads at district zoom */
@@ -129,6 +138,14 @@
         }
       } catch (e) {}
     });
+    /* Without this the top third of a pitched frame is dead black pixels. A faint
+       horizon glow costs nothing and makes the city read as a place rather than a hole. */
+    try {
+      map.setSky({
+        "sky-color": "#0b1018", "horizon-color": "#1d2532", "fog-color": "#151a22",
+        "fog-ground-blend": 0.55, "horizon-fog-blend": 0.42, "sky-horizon-blend": 0.7
+      });
+    } catch (e) {}
   };
 
   /* ── a configured map, identical on every page ── */

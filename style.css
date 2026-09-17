@@ -435,3 +435,35 @@ footer a{color:var(--mut)}
 .mempty.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
 .mempty b{display:block;font-size:15px;margin-bottom:6px}
 .mempty i{font-style:normal;font-size:12.5px;color:var(--mut);line-height:1.55}
+
+/* ── one radius scale ───────────────────────────────────────────────────────
+   The reference product runs two unrelated control languages side by side: 42px
+   fully-round pills in one mode, 36px 10px-radius fields in the other, with a 4px
+   dropdown hanging off the round one. Ours uses a single scale everywhere:
+   9 inside a segmented track, 12 for a control, 14 for a card.                 */
+.mapbar .mgroup{border-radius:12px;padding:3px;gap:2px;background:rgba(14,15,20,.9);
+  border:1px solid rgba(255,255,255,.09);box-shadow:0 6px 22px rgba(0,0,0,.45)}
+.mapbar .mgroup button{border-radius:9px;padding:8px 15px;font-size:13px;font-weight:500;
+  transition:background-color .15s ease,color .15s ease}
+.mapbar .mgroup button.on{background:linear-gradient(135deg,var(--copper-hi),var(--copper));
+  color:#17120e;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.mapbar .mpill{border-radius:12px;padding:8px 13px;background:rgba(14,15,20,.9);
+  border:1px solid rgba(255,255,255,.09);box-shadow:0 6px 22px rgba(0,0,0,.45)}
+.mapbar .mpill input{transition:none}
+.mstack>span{border-radius:9px;padding:3px 9px;background:rgba(14,15,20,.86);
+  border:1px solid rgba(255,255,255,.08)}
+.finds{border-radius:12px}
+.finds button{border-radius:9px}
+.maplegend{border-radius:14px;background:rgba(16,18,22,.86);border:1px solid rgba(255,255,255,.10)}
+.mempty,.benchcard{border-radius:14px}
+.mapnav a{border-radius:12px}
+.mapnav a.on{box-shadow:0 1px 3px rgba(0,0,0,.2)}
+
+/* the zoom/compass controls, themed rather than inverted with a filter hack */
+.maplibregl-ctrl-group{background:rgba(16,18,22,.9)!important;border:1px solid rgba(255,255,255,.10)!important;
+  border-radius:12px!important;overflow:hidden;box-shadow:0 6px 22px rgba(0,0,0,.45)!important}
+.maplibregl-ctrl-group button{filter:none!important;opacity:1!important;background:transparent!important;
+  width:32px!important;height:32px!important;border-color:rgba(255,255,255,.07)!important}
+.maplibregl-ctrl-group button:hover{background:rgba(211,161,136,.16)!important}
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon{filter:invert(1) brightness(.92)}
+.maplibregl-ctrl-attrib{background:rgba(16,18,22,.8)!important;border-radius:10px 0 0 0!important}
