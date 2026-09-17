@@ -94,7 +94,7 @@
           map.setPaintProperty(id, "fill-extrusion-opacity", .92);
           map.setPaintProperty(id, "fill-extrusion-vertical-gradient", true);
           /* show the model earlier than the style's default z14 so it reads at district zoom */
-          map.setLayerZoomRange(id, 12.4, 24);
+          map.setLayerZoomRange(id, 11.8, 24);
         }
       } catch (e) {}
     });
@@ -259,7 +259,12 @@
     if (m === "areas" && !map.getSource("areas")) buildAreas();
     else if (m === "areas") buildAreas(); else buildProjects();
     document.getElementById("panel").classList.remove("on");
-    if (m === "projects") map.easeTo({ zoom: Math.max(map.getZoom(), 12.6), pitch: 62, duration: 1100 });
+    if (m === "projects") {
+      /* Downtown / Business Bay: where the model and most of the markers actually are */
+      map.flyTo({ center: [55.2735, 25.1875], zoom: 13.6, pitch: 64, bearing: -24, duration: 2200, curve: 1.5 });
+    } else {
+      map.flyTo({ center: HOME.center, zoom: HOME.zoom, pitch: THREE_D ? HOME.pitch : 0, bearing: HOME.bearing, duration: 1600 });
+    }
   }
 
   function set3D(on) {
