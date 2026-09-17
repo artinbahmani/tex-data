@@ -170,35 +170,136 @@
       '<div class="lgrow"><em style="background:' + C.LOW + '"></em>Lowest<b>' + fmt(Math.round(s.mn)) + '</b></div>';
   };
 
-  /* ── price pills: a labelled marker carrying its own number, the way the
-     reference rental and benchmark maps do it. Drawn as a symbol layer so
-     MapLibre handles the collision detection for us.                        ── */
+  /* ── price pills ──────────────────────────────────────────────────────────
+     A real pill: solid surface, 1px edge, drop shadow, white or dark text chosen
+     by the fill's own luminance. Drawn once per colour step as a nine-patch image
+     and stretched to the label by `icon-text-fit`, so MapLibre owns the collision
+     detection. The reference maps use DOM markers with none, and measure 91% and
+     99.8% of their markers overlapping another; ours simply cannot.               */
+  C.STEPS = 7;
+  function lum(rgb) {
+    var m = /(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/.exec(rgb);
+    if (!m) return 0;
+    var c = [+m[1], +m[2], +m[3]].map(function (v) {
+      v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4);
+    });
+    return .2126 * c[0] + .7152 * c[1] + .0722 * c[2];
+  }
+  /* WCAG contrast against the fill decides the label colour, rather than a guess */
+  C.inkOn = function (bg) {
+    var L = lum(bg);
+    return (L + .05) / .05 > 1.06 / (L + .05) ? "#12131a" : "#ffffff";
+  };
+
+  /* the expiry buckets: a sequential urgency scale, not arbitrary hues, and the
+     label always carries the count so the colour is never the only signal */
+  C.EXP = { 1: "rgb(188,78,58)", 2: "rgb(216,137,100)", 3: "rgb(199,158,138)", 0: "#3c4250" };
+
+  function pillImage(fill, border) {
+    var R = 2, W = 48, H = 30, r = 15;            /* logical px, drawn at 2x */
+    var cv = document.createElement("canvas");
+    cv.width = W * R; cv.height = H * R;
+    var x = cv.getContext("2d");
+    x.scale(R, R);
+    x.shadowColor = "rgba(0,0,0,.45)"; x.shadowBlur = 5; x.shadowOffsetY = 2;
+    x.beginPath();
+    if (x.roundRect) x.roundRect(2, 2, W - 4, H - 6, r);
+    else { x.moveTo(2 + r, 2); x.arcTo(W - 2, 2, W - 2, H - 4, r); x.arcTo(W - 2, H - 4, 2, H - 4, r);
+           x.arcTo(2, H - 4, 2, 2, r); x.arcTo(2, 2, W - 2, 2, r); x.closePath(); }
+    x.fillStyle = fill; x.fill();
+    x.shadowColor = "transparent";
+    x.lineWidth = 1.2; x.strokeStyle = border || "rgba(255,255,255,.62)"; x.stroke();
+    return { data: x.getImageData(0, 0, cv.width, cv.height), W: W, H: H, R: R };
+  }
+
+  /* one image per ramp step, plus the selected state and the four expiry buckets */
+  C.ensurePills = function (map) {
+    if (map.__pills) return;
+    map.__pills = {};
+    var add = function (id, fill, border) {
+      var p = pillImage(fill, border);
+      if (map.hasImage(id)) map.removeImage(id);
+      map.addImage(id, p.data, {
+        pixelRatio: p.R,
+        stretchX: [[16 * p.R, 32 * p.R]],
+        stretchY: [[12 * p.R, 18 * p.R]],
+        content: [8 * p.R, 4 * p.R, (p.W - 8) * p.R, (p.H - 8) * p.R]
+      });
+      map.__pills[id] = C.inkOn(fill);
+    };
+    for (var i = 0; i < C.STEPS; i++) add("pl" + i, C.ramp(i / (C.STEPS - 1)));
+    add("plsel", C.PAL.accentHi, "#ffffff");
+    Object.keys(C.EXP).forEach(function (k) { add("plx" + k, C.EXP[k]); });
+  };
+  /* quantise a percentile to a pill image, so a continuous ramp needs 7 images not 600 */
+  C.pillFor = function (map, p) {
+    var i = Math.max(0, Math.min(C.STEPS - 1, Math.round(p * (C.STEPS - 1))));
+    return { img: "pl" + i, ink: map.__pills["pl" + i] };
+  };
+  C.pillExp = function (map, bucket) {
+    var id = "plx" + (C.EXP[bucket] ? bucket : 0);
+    return { img: id, ink: map.__pills[id] };
+  };
+
   C.addPills = function (map, id, data, opts) {
     opts = opts || {};
+    C.ensurePills(map);
     map.addSource(id, { type: "geojson", data: data });
     map.addLayer({
       id: id + "-pill", type: "symbol", source: id,
       minzoom: opts.minzoom == null ? 11.2 : opts.minzoom,
       layout: {
-        "text-field": ["get", "lbl"], "text-size": opts.size || 12,
-        "text-font": ["Noto Sans Bold"], "text-allow-overlap": false,
-        "text-padding": 3, "text-anchor": "center"
+        "icon-image": ["get", "img"],
+        "icon-text-fit": "both",
+        "icon-text-fit-padding": [1, 9, 1, 9],
+        "icon-allow-overlap": false,
+        "text-field": ["get", "lbl"],
+        "text-size": ["case", ["==", ["get", "sel"], 1], 13.5, 12],
+        "text-font": ["Noto Sans Bold"],
+        "text-allow-overlap": false,
+        "text-padding": 2,
+        "text-anchor": "center",
+        /* the pills that matter survive a collision: selected first, then by value */
+        "symbol-sort-key": ["case", ["==", ["get", "sel"], 1], -1e9, ["-", 0, ["get", "v"]]]
       },
       paint: {
-        "text-color": "#ffffff",
-        "text-halo-color": ["get", "c"], "text-halo-width": 2.2, "text-halo-blur": .4,
-        "text-opacity": ["interpolate", ["linear"], ["zoom"], 11, 0, 11.6, 1]
+        "text-color": ["get", "ink"],
+        "icon-opacity": ["interpolate", ["linear"], ["zoom"], 10.8, 0, 11.4, 1],
+        "text-opacity": ["interpolate", ["linear"], ["zoom"], 10.8, 0, 11.4, 1]
       }
     });
+    /* a small dot keeps every building findable below the zoom where pills appear */
     map.addLayer({
       id: id + "-dot", type: "circle", source: id,
       paint: {
-        "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 4, 15, 9],
-        "circle-color": ["get", "c"], "circle-opacity": .92,
-        "circle-stroke-width": 1.2, "circle-stroke-color": "rgba(255,255,255,.55)"
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 3.4, 15, 7],
+        "circle-color": ["get", "c"], "circle-opacity": .9,
+        "circle-stroke-width": 1, "circle-stroke-color": "rgba(255,255,255,.5)"
       }
     }, id + "-pill");
     return id + "-dot";
+  };
+
+  /* ── never ship a map that needs a window nudge ──
+     The reference villa map paints nothing until the viewport is resized, silently.
+     A ResizeObserver plus a settle tick removes that whole class of failure.      */
+  C.observeResize = function (map, el) {
+    var node = el || map.getContainer();
+    try {
+      new ResizeObserver(function () { map.resize(); }).observe(node);
+    } catch (e) {
+      window.addEventListener("resize", function () { map.resize(); });
+    }
+    setTimeout(function () { map.resize(); }, 350);
+    setTimeout(function () { map.resize(); }, 1400);
+  };
+
+  /* ── an explicit empty state, because a blank map is not an answer ── */
+  C.empty = function (elId, on, msg) {
+    var el = document.getElementById(elId);
+    if (!el) return;
+    el.innerHTML = on ? ('<b>Nothing matches this filter</b><i>' + msg + '</i>') : "";
+    el.classList.toggle("on", !!on);
   };
 
   C.fmtAED  = function (v) { return "AED " + TEX.full(v); };

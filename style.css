@@ -423,3 +423,15 @@ footer a{color:var(--mut)}
   .mapnav a{padding:8px 13px;font-size:12.5px}
   .mapnav a i{display:none}
 }
+
+/* An explicit empty state. Their rental map returns 204 and shows a blank map with a
+   blank legend; their villa map paints nothing at all until the window is resized.
+   Both fail silently, which is the one thing a data map must never do. */
+.mempty{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(.94);z-index:8;
+  background:rgba(12,12,18,.94);backdrop-filter:blur(20px);border:1px solid rgba(211,161,136,.3);
+  border-radius:16px;padding:20px 24px;max-width:330px;text-align:center;
+  box-shadow:0 18px 52px rgba(0,0,0,.66);opacity:0;pointer-events:none;
+  transition:opacity .3s var(--ease),transform .3s var(--spring)}
+.mempty.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.mempty b{display:block;font-size:15px;margin-bottom:6px}
+.mempty i{font-style:normal;font-size:12.5px;color:var(--mut);line-height:1.55}

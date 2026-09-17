@@ -118,7 +118,20 @@
       hov = null; TEX.hideTip();
     });
     map.on("click", "a2-fill", function (e) { panel(e.features[0].properties, "area"); });
-    C.legend("lg", m().label, s, m().fmt);
+    if (EXPIRY) expiryLegend(); else C.legend("lg", m().label, s, m().fmt);
+  }
+  /* their villa map colours nothing and explains nothing; ours does both */
+  function expiryLegend() {
+    var el = document.getElementById("lg");
+    if (!el) return;
+    var lab = ["", "within 1 month", "within 2 months", "within 3 months"][EXPIRY];
+    el.innerHTML = '<div class="lgbar"><span>Soon</span><i style="background:linear-gradient(90deg,' +
+        C.EXP[1] + ',' + C.EXP[2] + ',' + C.EXP[3] + ')"></i><b>Leases ending ' + lab + '</b><span>Later</span></div>' +
+      [[1, "Ending within 1 month"], [2, "Within 2 months"], [3, "Within 3 months"]].map(function (r) {
+        return '<div class="lgrow"><em style="background:' + C.EXP[r[0]] + '"></em>' + r[1] +
+               '<b>' + (r[0] <= EXPIRY ? "shown" : "hidden") + "</b></div>";
+      }).join("") +
+      '<div class="lgrow"><em style="background:' + C.EXP[0] + '"></em>Nothing ending<b>dimmed</b></div>';
   }
   function hoverExtra(p) {
     if (VIEW === "rent") return "<br>" + TEX.full(p.contracts) + " contracts · " + TEX.full(p[expKey()]) + " ending soon";
@@ -132,25 +145,32 @@
     if (VIEW === "bench" && PICKED) pool = near(PICKED, RADIUS);
     pool = pool.filter(function (p) { return p.lat && projVal(p) > 0 && (VIEW !== "rent" || passesExpiry(p)); });
     var s = C.stats(pool.map(function (p) { return { v: projVal(p) }; }), "v");
-    return { s: s, fc: { type: "FeatureCollection", features: pool.map(function (p) {
+    return { s: s, n: pool.length, fc: { type: "FeatureCollection", features: pool.map(function (p) {
       var v = projVal(p);
       var lf = (VIEW === "bench" ? (m().pill || m().fmt) : shortPill);
-      var sel = PICKED && p.s === PICKED.s;
+      var sel = !!(PICKED && p.s === PICKED.s);
+      /* When the Expiring-in filter is on, the pill itself carries the urgency and the
+         label carries the count, so the colour is never the only thing saying it.
+         The reference villa map defines exactly this encoding in CSS and then never
+         renders it, which is why its whole premise is unreadable. */
+      var pill = sel ? { img: "plsel", ink: C.inkOn(C.PAL.accentHi) }
+               : EXPIRY ? C.pillExp(map, EXPIRY)
+               : C.pillFor(map, C.pct(v, s));
+      var lbl = EXPIRY ? (TEX.full(+p[expKey()] || 0) + " ending") : lf(v);
       return { type: "Feature",
         properties: { n: p.n, s: p.s, area: p.area, v: v, sel: sel ? 1 : 0,
-                      lbl: lf(v), c: sel ? C.PAL.accentHi : C.ramp(C.pct(v, s)),
+                      lbl: lbl, img: pill.img, ink: pill.ink,
+                      c: sel ? C.PAL.accentHi : (EXPIRY ? C.EXP[EXPIRY] : C.ramp(C.pct(v, s))),
                       sub: subFor(p) },
         geometry: { type: "Point", coordinates: [p.lon, p.lat] } };
     }) } };
   }
-  function shortPill(v) { return v >= 1000000 ? (v / 1000000).toFixed(1) + "M" : v >= 1000 ? Math.round(v / 1000) + "K" : TEX.full(v); }
-  function subFor(p) {
-    if (VIEW === "rent")   return TEX.full(p.contracts || 0) + " contracts · " + TEX.full(p[expKey()] || 0) + " ending";
-    if (VIEW === "villas") return TEX.full(p.sales || 0) + " villa sales";
-    return TEX.full(p["n" + WINDOW] || 0) + " sales in " + WINDOW + "M";
-  }
   function drawPills() {
     var d = pillData();
+    C.empty("mempty", d.n === 0,
+      VIEW === "bench" ? "No building inside this radius has enough registered sales for this window. Widen the radius, or switch to 12 months."
+      : EXPIRY ? ("No building we track has a lease ending within " + EXPIRY + " month" + (EXPIRY > 1 ? "s" : "") + ". Try a longer window.")
+      : "No building has data for this measure yet.");
     if (map.getSource("pp")) { map.getSource("pp").setData(d.fc); return; }
     C.addPills(map, "pp", d.fc, { minzoom: VIEW === "bench" ? 10.5 : 11.4 });
     map.on("mousemove", "pp-dot", function (e) {
@@ -288,6 +308,7 @@
     M.state = function () { return { view: VIEW, metric: METRIC, window: WINDOW, expiry: EXPIRY,
                                      radius: RADIUS, picked: PICKED && PICKED.n,
                                      areas: AREAS.length, projects: PROJECTS.length }; };
+    C.observeResize(map);
     map.on("style.load", function () {
       C.darken(map);
       drawAreas();
