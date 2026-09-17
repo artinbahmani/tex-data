@@ -176,7 +176,7 @@ document.querySelectorAll('[data-metric]').forEach(function(b){
 document.getElementById('reset').onclick=function(){
   map.easeTo({center:[55.21,25.03],zoom:9.35,pitch:62,bearing:-20,duration:1300});
 };
-map.on('load',function(){
+map.on('style.load',function(){
   darken(); build();
   var spin=true,t0=performance.now();
   function orbit(t){ if(!spin)return; map.setBearing(-20+Math.sin((t-t0)/30000)*13); requestAnimationFrame(orbit); }
