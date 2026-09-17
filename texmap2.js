@@ -284,6 +284,10 @@
     POLY.features.forEach(function (f, i) { f.id = i; });
 
     map = C.make("map", VIEW === "bench" ? { center: [55.2735, 25.1875], zoom: 12.6, pitch: 55, bearing: -22 } : null);
+    M.map = map;   /* exposed so the map can be inspected from the console */
+    M.state = function () { return { view: VIEW, metric: METRIC, window: WINDOW, expiry: EXPIRY,
+                                     radius: RADIUS, picked: PICKED && PICKED.n,
+                                     areas: AREAS.length, projects: PROJECTS.length }; };
     map.on("style.load", function () {
       C.darken(map);
       drawAreas();

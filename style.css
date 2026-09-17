@@ -368,8 +368,16 @@ footer a{color:var(--mut)}
 .mapnav a.on i{opacity:.75}
 
 /* a caption above a control group, so a bare row of buttons is never unexplained */
-.mstack{display:flex;flex-direction:column;gap:5px;pointer-events:auto}
-.mstack>span{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim);padding-left:15px}
+.mstack{display:flex;flex-direction:column;gap:5px;pointer-events:auto;align-items:flex-start}
+.mstack>span{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(236,232,228,.62);
+  background:rgba(10,10,15,.88);backdrop-filter:blur(12px);border:1px solid var(--line);
+  border-radius:20px;padding:3px 11px;line-height:1.5;white-space:nowrap}
+
+/* the bar wraps as rows of controls; Reset rides the end of whichever row it lands on
+   rather than being thrown to a line of its own by a flex spacer */
+.mapbar{align-items:flex-start;row-gap:11px}
+.mapbar>.mspacer{flex:1 1 0;min-width:0;pointer-events:none}
+.mapbar .mgroup.tail{margin-left:auto}
 
 /* type-ahead under the Find box */
 .finds{position:absolute;top:100%;left:0;margin-top:7px;min-width:250px;max-height:290px;overflow-y:auto;z-index:9;
