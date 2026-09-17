@@ -141,6 +141,7 @@
 
   /* ── building pills ─────────────────────────────────────────────────────── */
   function pillData() {
+    C.ensurePills(map);   /* pillData runs before addPills on the first draw */
     var pool = PROJECTS;
     if (VIEW === "bench" && PICKED) pool = near(PICKED, RADIUS);
     pool = pool.filter(function (p) { return p.lat && projVal(p) > 0 && (VIEW !== "rent" || passesExpiry(p)); });
