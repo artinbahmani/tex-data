@@ -44,8 +44,16 @@
   }
   function stats(rows) {
     var v = vals(rows).sort(function (a, b) { return a - b; });
-    if (!v.length) return { mn: 0, mx: 1, avg: 0 };
-    return { mn: v[0], mx: v[v.length - 1], avg: v.reduce(function (a, b) { return a + b; }, 0) / v.length };
+    if (!v.length) return { mn: 0, mx: 1, avg: 0, sorted: [] };
+    return { mn: v[0], mx: v[v.length - 1],
+             avg: v.reduce(function (a, b) { return a + b; }, 0) / v.length, sorted: v };
+  }
+  /* percentile position of a value inside the set, so colour shows RANK not raw distance.
+     A linear ramp put 90% of Dubai in the same blue because a few prime districts stretch it. */
+  function pct(v, s) {
+    var a = s.sorted, lo = 0, hi = a.length;
+    while (lo < hi) { var m = (lo + hi) >> 1; if (a[m] < v) lo = m + 1; else hi = m; }
+    return a.length > 1 ? lo / (a.length - 1) : .5;
   }
 
   /* ── repaint the light base style into the TEX night palette ── */
@@ -99,8 +107,7 @@
     POLY.features.forEach(function (f) {
       var a = by[f.properties.dld] || {};
       var v = +a[METRIC] || 0;
-      var t = s.mx > s.mn ? (v - s.mn) / (s.mx - s.mn) : 0;
-      f.properties.c = v ? ramp(Math.pow(t, .7)) : "#16161d";
+      f.properties.c = v ? ramp(pct(v, s)) : "#16161d";
       f.properties.v = v;
       f.properties.name = a.n || f.properties.dld;
       f.properties.s = a.s || "";
@@ -144,15 +151,15 @@
     var rows = PROJECTS.filter(function (p) { return (+p[METRIC] || 0) > 0; });
     var s = stats(rows);
     var pts = { type: "FeatureCollection", features: rows.map(function (p) {
-      var v = +p[METRIC] || 0, t = s.mx > s.mn ? (v - s.mn) / (s.mx - s.mn) : 0;
+      var v = +p[METRIC] || 0;
       return { type: "Feature",
-        properties: { n: p.n, s: p.s, c: ramp(Math.pow(t, .65)), v: v, exact: p.src && p.src.indexOf("osm") === 0 ? 1 : 0,
+        properties: { n: p.n, s: p.s, c: ramp(pct(v, s)), v: v, exact: p.src && p.src.indexOf("osm") === 0 ? 1 : 0,
                       sales: p.sales, psf: p.psf, price: p.price, off: p.off, area: p.area, exp90: p.exp90 || 0 },
         geometry: { type: "Point", coordinates: [p.lon, p.lat] } };
     }) };
     var shapes = { type: "FeatureCollection", features: rows.filter(function (p) { return p.rings; }).map(function (p) {
-      var v = +p[METRIC] || 0, t = s.mx > s.mn ? (v - s.mn) / (s.mx - s.mn) : 0;
-      return { type: "Feature", properties: { n: p.n, s: p.s, c: ramp(Math.pow(t, .65)), h: p.h || 90 },
+      var v = +p[METRIC] || 0;
+      return { type: "Feature", properties: { n: p.n, s: p.s, c: ramp(pct(v, s)), h: p.h || 90 },
                geometry: { type: "Polygon", coordinates: p.rings } };
     }) };
     if (map.getSource("proj")) { map.getSource("proj").setData(pts); map.getSource("projshape").setData(shapes); legend(s); return; }
@@ -191,7 +198,7 @@
     el.innerHTML =
       '<div class="lgbar"><span>Low</span><i></i><b>' + m.label + '</b><span>High</span></div>' +
       '<div class="lgrow"><em style="background:rgb(202,66,45)"></em>Highest<b>' + m.fmt(Math.round(s.mx)) + '</b></div>' +
-      '<div class="lgrow"><em style="background:rgb(211,161,136)"></em>Average<b>' + m.fmt(Math.round(s.avg)) + '</b></div>' +
+      '<div class="lgrow"><em style="background:rgb(211,161,136)"></em>Median<b>' + m.fmt(Math.round(s.sorted[Math.floor(s.sorted.length/2)] || s.avg)) + '</b></div>' +
       '<div class="lgrow"><em style="background:rgb(58,96,152)"></em>Lowest<b>' + m.fmt(Math.round(s.mn)) + '</b></div>';
   }
 
