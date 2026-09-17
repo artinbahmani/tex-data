@@ -166,6 +166,17 @@
         geometry: { type: "Point", coordinates: [p.lon, p.lat] } };
     }) } };
   }
+  /* 1,553,000 is nine glyphs; 1.6M is four. On a map that is a ~40% width cut and
+     therefore directly fewer collisions. The full figure lives in the hover card. */
+  function shortPill(v) {
+    return v >= 1000000 ? (v / 1000000).toFixed(v >= 10000000 ? 0 : 1) + "M"
+         : v >= 1000 ? Math.round(v / 1000) + "K" : TEX.full(v);
+  }
+  function subFor(p) {
+    if (VIEW === "rent")   return TEX.full(p.contracts || 0) + " contracts \u00b7 " + TEX.full(p[expKey()] || 0) + " ending";
+    if (VIEW === "villas") return TEX.full(p.sales || 0) + " villa sales";
+    return TEX.full(p["n" + WINDOW] || 0) + " sales in the last " + WINDOW + " months";
+  }
   function drawPills() {
     var d = pillData();
     C.empty("mempty", d.n === 0,
