@@ -89,7 +89,7 @@
        "yld","val","exp30","exp60","exp90"].forEach(function (k) { p[k] = (a && a[k]) || 0; });
     });
     var src = map.getSource("a2");
-    if (src) { src.setData(POLY); C.legend("lg", m().label, s, m().fmt); return; }
+    if (src) { src.setData(POLY); paintLegend(s); return; }
     map.addSource("a2", { type: "geojson", data: POLY });
     map.addLayer({ id: "a2-fill", type: "fill", source: "a2",
       paint: { "fill-color": ["get", "c"],
@@ -118,6 +118,11 @@
       hov = null; TEX.hideTip();
     });
     map.on("click", "a2-fill", function (e) { panel(e.features[0].properties, "area"); });
+    paintLegend(s);
+  }
+  /* one place decides which legend is on screen, so the redraw path and the
+     first-draw path can never disagree about it */
+  function paintLegend(s) {
     if (EXPIRY) expiryLegend(); else C.legend("lg", m().label, s, m().fmt);
   }
   /* their villa map colours nothing and explains nothing; ours does both */
