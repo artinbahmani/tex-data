@@ -120,7 +120,7 @@
     if (src) { src.setData(POLY); legend(s); return; }
     map.addSource("areas", { type: "geojson", data: POLY });
     map.addLayer({ id: "area-fill", type: "fill", source: "areas",
-      paint: { "fill-color": ["get", "c"], "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], .62, .40] } });
+      paint: { "fill-color": ["get", "c"], "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], .88, .66] } });
     map.addLayer({ id: "area-line", type: "line", source: "areas",
       paint: { "line-color": ["case", ["boolean", ["feature-state", "hover"], false], "#f0cdb4", "rgba(211,161,136,.45)"],
                "line-width": ["case", ["boolean", ["feature-state", "hover"], false], 2.2, .9] } });
