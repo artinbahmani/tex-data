@@ -336,6 +336,7 @@
     C.observeResize(map);
     map.on("style.load", function () {
       C.darken(map);
+      C.addRealBuildings(map);
       drawAreas();
       drawPills();
       if (VIEW === "bench" && cfg.start) pick(cfg.start);
@@ -351,7 +352,9 @@
     if (td) td.onchange = function () {
       map.easeTo({ pitch: td.checked ? 55 : 0, duration: 800 });
       (map.getStyle().layers || []).forEach(function (L) {
-        if (L.type === "fill-extrusion") { try { map.setLayoutProperty(L.id, "visibility", td.checked ? "visible" : "none"); } catch (e) {} }
+        if (L.type === "fill-extrusion" && L.id.indexOf("pp") !== 0) {
+          try { map.setLayoutProperty(L.id, "visibility", td.checked ? "visible" : "none"); } catch (e) {}
+        }
       });
     };
     var px = document.getElementById("px");

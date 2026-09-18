@@ -217,7 +217,7 @@
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
     C.observeResize(map);
     map.on("style.load", function () {
-      darken(); buildAreas(); setMode(MODE);
+      darken(); C.addRealBuildings(map); buildAreas(); setMode(MODE);
       var spin = true, t0 = performance.now();
       (function orbit(t) { if (!spin) return; map.setBearing(-18 + Math.sin((t - t0) / 32000) * 11); requestAnimationFrame(orbit); })(t0);
       ["mousedown", "touchstart", "wheel"].forEach(function (ev) {

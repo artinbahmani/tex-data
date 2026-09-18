@@ -43,11 +43,61 @@
     accentHi: "#f0cdb4"
   };
 
-  /* Extruded buildings: ONE flat grey at partial opacity, with no height ramp and no
-     vertical gradient. Measured off the reference product, which does exactly this and
-     is right to: with no colour on the buildings, the only chromatic thing on screen is
-     the data. A height ramp competes with the choropleth for the same attention.     */
-  C.BLDG = { color: "#a9a9a9", opacity: 0.58 };
+  /* The 3D city.
+
+     Two sources, because neither is enough alone. The vector tiles carry every footprint
+     but only ONE extrusion per building, so the Burj Khalifa arrives as a single 828 m
+     slab: OpenMapTiles does not ship `building:part`, and the Burj's whole shape IS its
+     setbacks. OpenStreetMap models it properly, 37 parts stepping 828 → 760 → 740 → 720
+     → ... → 545, so we fetch those ourselves and draw the towers from real geometry,
+     leaving the tiles to handle the low-rise.
+
+     Greyscale only, top-lit. Height shades the stone the way distance and daylight
+     actually do; it is not a data encoding, and nothing here is allowed to be chromatic,
+     because the only chromatic thing on a data map should be the data. */
+  C.BLDG = {
+    base:  "#33363f",    /* street level, in shadow */
+    mid:   "#454953",
+    high:  "#5b606c",
+    top:   "#767c8a",    /* the last hundred metres, catching the light */
+    opacity: 0.94,
+    cut: 60              /* metres: above this the tiles hand over to real geometry */
+  };
+  C.bldgRamp = function () {
+    return ["interpolate", ["linear"], ["coalesce", ["get", "h"], ["get", "render_height"], 12],
+            0, C.BLDG.base, 45, C.BLDG.mid, 140, C.BLDG.high, 420, C.BLDG.top];
+  };
+
+  /* Real tower geometry, fetched once and drawn over the tiles. */
+  C.addRealBuildings = function (map, url) {
+    if (map.getSource("bldg3d")) return;
+    map.addSource("bldg3d", { type: "geojson", data: url || "/osm_parts.json" });
+    var firstLabel = null;
+    (map.getStyle().layers || []).forEach(function (L) {
+      if (!firstLabel && L.type === "symbol") firstLabel = L.id;
+    });
+    map.addLayer({
+      id: "bldg3d", type: "fill-extrusion", source: "bldg3d", minzoom: 12.5,
+      paint: {
+        "fill-extrusion-color": C.bldgRamp(),
+        "fill-extrusion-height": ["get", "h"],
+        "fill-extrusion-base": ["get", "b"],
+        "fill-extrusion-opacity": C.BLDG.opacity,
+        "fill-extrusion-vertical-gradient": true,
+        /* fade in rather than pop when the source finishes loading */
+        "fill-extrusion-opacity-transition": { duration: 600 }
+      }
+    }, firstLabel || undefined);
+
+    /* Hand the towers over: below the cut the tiles draw, above it we do. Without this
+       the Burj's 828 m tile slab still stands inside our setbacks. */
+    (map.getStyle().layers || []).forEach(function (L) {
+      if (L.type !== "fill-extrusion" || L.id === "bldg3d" || L.id.indexOf("proj") === 0) return;
+      try {
+        map.setFilter(L.id, ["<", ["coalesce", ["get", "render_height"], 0], C.BLDG.cut]);
+      } catch (e) {}
+    });
+  };
 
   /* ── the data ramp ────────────────────────────────────────────────────────
      Sequential, single-family, cool to warm through the TEX copper. Lightness
@@ -130,7 +180,7 @@
           else if (/road|street|highway|motorway/i.test(id))
             map.setLayerZoomRange(id, 14.5, 24);
         } else if (t === "fill-extrusion") {
-          map.setPaintProperty(id, "fill-extrusion-color", C.BLDG.color);
+          map.setPaintProperty(id, "fill-extrusion-color", C.bldgRamp());
           map.setPaintProperty(id, "fill-extrusion-opacity", C.BLDG.opacity);
           map.setPaintProperty(id, "fill-extrusion-vertical-gradient", true);
           /* show the model earlier than the style default (z14) so it reads at district zoom */
@@ -140,6 +190,12 @@
     });
     /* Without this the top third of a pitched frame is dead black pixels. A faint
        horizon glow costs nothing and makes the city read as a place rather than a hole. */
+    /* Directional light. Without it every face of every tower is the same grey and the
+       city reads as cardboard; with it the setbacks catch the light and you can see the
+       shape of a building. */
+    try {
+      map.setLight({ anchor: "map", position: [1.4, 215, 42], color: "#fff6ec", intensity: 0.42 });
+    } catch (e) {}
     try {
       map.setSky({
         "sky-color": "#0b1018", "horizon-color": "#1d2532", "fog-color": "#151a22",
