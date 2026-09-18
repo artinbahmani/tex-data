@@ -85,6 +85,7 @@
       p.name = (a && a.n) || p.dld;
       p.s = (a && a.s) || "";
       p.dim = ok ? 0 : 1;
+      p.also = f.properties.also ? f.properties.also.join(", ") : "";
       ["rent","rentpsf","contracts","newlet","gap","sqft","price","psf","sales",
        "yld","val","exp30","exp60","exp90"].forEach(function (k) { p[k] = (a && a[k]) || 0; });
     });
@@ -112,7 +113,8 @@
       var p = e.features[0].properties;
       C.legendHover = p.name;
       TEX.showTip(e.originalEvent, "<b>" + p.name + "</b><br><s>" + m().label + ": " +
-        (p.v ? m().fmt(p.v) : "no data") + "</s>" + hoverExtra(p));
+        (p.v ? m().fmt(p.v) : "no data") + "</s>" + hoverExtra(p) +
+        (p.also ? "<br><i style='opacity:.6'>this outline also covers " + p.also + "</i>" : ""));
     });
     map.on("mouseleave", "a2-fill", function () {
       map.getCanvas().style.cursor = "";
@@ -186,6 +188,8 @@
   }
   function drawPills() {
     var d = pillData();
+    /* the benchmark map has no choropleth, so the pills are what the legend is about */
+    if (VIEW === "bench") C.legend("lg", m().label + ", last " + WINDOW + " months", d.s, m().fmt);
     C.empty("mempty", d.n === 0,
       VIEW === "bench" ? "No building inside this radius has enough registered sales for this window. Widen the radius, or switch to 12 months."
       : EXPIRY ? ("No building we track has a lease ending within " + EXPIRY + " month" + (EXPIRY > 1 ? "s" : "") + ". Try a longer window.")
@@ -300,7 +304,9 @@
           (p.yld ? row("Gross yield", p.yld + "%") : "") +
           (p.exp90 ? row("Leases ending in 90d", TEX.full(p.exp90)) : "");
     }
-    document.getElementById("pr").innerHTML = h || "<p class='note'>No registered activity in this cut.</p>";
+    document.getElementById("pr").innerHTML = (h || "<p class='note'>No registered activity in this cut.</p>") +
+      (p.also ? '<p class="note" style="margin-top:12px">OpenStreetMap draws one outline here where the Land Department records several districts. These figures are for ' +
+                (p.name || p.n) + ' alone; the same outline also covers ' + p.also + '.</p>' : "");
     document.getElementById("pl").href = (kind === "area" ? "/areas/" : "/projects/") + p.s + "/";
     el.classList.add("on");
   }
