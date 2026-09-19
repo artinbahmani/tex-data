@@ -54,15 +54,19 @@
     map.addSource("areas", { type: "geojson", data: POLY });
     map.addLayer({ id: "area-fill", type: "fill", source: "areas",
       paint: { "fill-color": ["get", "c"],
-               "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], .84, .6],
+               "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], .95, .82],
                "fill-opacity-transition": { duration: 180 },
                "fill-color-transition": { duration: 260 } } });
     map.addLayer({ id: "area-line", type: "line", source: "areas",
-      paint: { "line-color": ["case", ["boolean", ["feature-state", "hover"], false], "#f0cdb4", "rgba(211,161,136,.45)"],
-               "line-width": ["case", ["boolean", ["feature-state", "hover"], false], 2.2, .9] } });
-    map.addLayer({ id: "area-label", type: "symbol", source: "areas", minzoom: 10.2,
-      layout: { "text-field": ["get", "name"], "text-size": 12, "text-allow-overlap": false },
-      paint: { "text-color": "rgba(255,255,255,.9)", "text-halo-color": "rgba(0,0,0,.85)", "text-halo-width": 1.5 } });
+      paint: { "line-color": ["case", ["boolean", ["feature-state", "hover"], false], "#ffffff", "rgba(10,12,16,.55)"],
+               "line-width": ["case", ["boolean", ["feature-state", "hover"], false], 2.4, .7] } });
+    map.addLayer({ id: "area-label", type: "symbol", source: "areas", minzoom: 11.2,
+      layout: { "text-field": ["get", "name"], "text-allow-overlap": false, "text-padding": 6,
+                "text-size": ["interpolate", ["linear"], ["zoom"], 11.2, 11, 14, 14],
+                /* the district with the most sales wins a collision, not whichever
+                   happens to be drawn last */
+                "symbol-sort-key": ["-", 0, ["get", "sales"]] },
+      paint: { "text-color": "#ffffff", "text-halo-color": "rgba(8,10,14,.92)", "text-halo-width": 1.6 } });
     var hov = null;
     map.on("mousemove", "area-fill", function (e) {
       map.getCanvas().style.cursor = "pointer";
@@ -186,22 +190,31 @@
     if (m === "areas" && !map.getSource("areas")) buildAreas();
     else if (m === "areas") buildAreas(); else buildProjects();
     document.getElementById("panel").classList.remove("on");
+    /* The 3D city belongs to Projects. On a choropleth it is noise: towers stand on
+       top of the shapes whose colour you are trying to read. */
+    cityVisible(m === "projects" && THREE_D);
     if (m === "projects") {
-      /* Downtown / Business Bay: where the model and most of the markers actually are */
-      map.flyTo({ center: [55.2735, 25.1875], zoom: 13.6, pitch: 64, bearing: -24, duration: 2200, curve: 1.5 });
+      var P = C.HOME3D;
+      map.flyTo({ center: P.center, zoom: P.zoom, pitch: P.pitch, bearing: P.bearing, duration: 2200, curve: 1.5 });
     } else {
-      map.flyTo({ center: HOME.center, zoom: HOME.zoom, pitch: THREE_D ? HOME.pitch : 0, bearing: HOME.bearing, duration: 1600 });
+      /* flat and square-on: a choropleth is read from above, not from an angle */
+      map.flyTo({ center: HOME.center, zoom: HOME.zoom, pitch: 0, bearing: 0, duration: 1600 });
     }
+  }
+
+  function cityVisible(on) {
+    (map.getStyle().layers || []).forEach(function (L) {
+      if (L.type !== "fill-extrusion" || L.id.indexOf("proj") === 0) return;
+      try { map.setLayoutProperty(L.id, "visibility", on ? "visible" : "none"); } catch (e) {}
+    });
   }
 
   function set3D(on) {
     THREE_D = on;
-    map.easeTo({ pitch: on ? 58 : 0, duration: 900 });
-    (map.getStyle().layers || []).forEach(function (L) {
-      if (L.type === "fill-extrusion" && L.id.indexOf("proj") !== 0) {
-        try { map.setLayoutProperty(L.id, "visibility", on ? "visible" : "none"); } catch (e) {}
-      }
-    });
+    /* Areas stays flat whatever this is set to — a tilted choropleth is unreadable,
+       and the toggle is really asking about the city model, which lives in Projects. */
+    if (MODE === "projects") map.easeTo({ pitch: on ? 62 : 0, duration: 900 });
+    cityVisible(on && MODE === "projects");
     if (map.getLayer("proj-shape")) map.setLayoutProperty("proj-shape", "visibility", (on && MODE === "projects") ? "visible" : "none");
   }
 
@@ -218,11 +231,6 @@
     C.observeResize(map);
     map.on("style.load", function () {
       darken(); C.addRealBuildings(map); buildAreas(); setMode(MODE);
-      var spin = true, t0 = performance.now();
-      (function orbit(t) { if (!spin) return; map.setBearing(-18 + Math.sin((t - t0) / 32000) * 11); requestAnimationFrame(orbit); })(t0);
-      ["mousedown", "touchstart", "wheel"].forEach(function (ev) {
-        map.getCanvas().addEventListener(ev, function () { spin = false; }, { once: true });
-      });
     });
     document.querySelectorAll("[data-mode]").forEach(function (b) {
       b.onclick = function () {
@@ -240,7 +248,10 @@
     var px = document.getElementById("px");
     if (px) px.onclick = function () { document.getElementById("panel").classList.remove("on"); };
     var rs = document.getElementById("reset");
-    if (rs) rs.onclick = function () { map.easeTo({ center: HOME.center, zoom: HOME.zoom, pitch: THREE_D ? HOME.pitch : 0, bearing: HOME.bearing, duration: 1200 }); };
+    if (rs) rs.onclick = function () {
+      var P = (MODE === "projects") ? C.HOME3D : HOME;
+      map.easeTo({ center: P.center, zoom: P.zoom, pitch: P.pitch, bearing: P.bearing, duration: 1200 });
+    };
     var find = document.getElementById("find");
     if (find) find.oninput = function () {
       var q = find.value.toLowerCase().trim();

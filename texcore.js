@@ -9,9 +9,19 @@
   "use strict";
   var C = window.TEXCORE = {};
 
-  /* Dubai plus a little breathing room. Stops a zoom-out to the open ocean. */
-  C.BOUNDS = [[54.55, 24.55], [56.15, 25.80]];
-  C.HOME   = { center: [55.21, 25.09], zoom: 9.6, pitch: 55, bearing: -18 };
+  /* Dubai, and not much else. The old bounds were wide enough that a pitched camera
+     at the home zoom put Sharjah, Ras Al Khaimah and two Iranian islands on screen
+     while Dubai's districts sat in one corner. */
+  C.BOUNDS = [[54.80, 24.72], [55.78, 25.44]];
+
+  /* Two cameras, because the two views want opposite things.
+     AREAS is a choropleth: the data is the colour of a flat shape, so it is read
+     from above. Tilting it turns a map into a receding plane and the far half of
+     the city becomes unreadable.
+     PROJECTS is the 3D city: the whole point is the skyline, so it is pitched hard
+     and dropped into Downtown. */
+  C.HOME   = { center: [55.235, 25.115], zoom: 10.35, pitch: 0, bearing: 0 };
+  C.HOME3D = { center: [55.2735, 25.1875], zoom: 13.6, pitch: 64, bearing: -24 };
   C.STYLE  = "https://tiles.openfreemap.org/styles/liberty";
 
   /* ── the palette ──────────────────────────────────────────────────────────

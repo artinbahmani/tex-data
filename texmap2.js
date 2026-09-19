@@ -94,16 +94,18 @@
     map.addSource("a2", { type: "geojson", data: POLY });
     map.addLayer({ id: "a2-fill", type: "fill", source: "a2",
       paint: { "fill-color": ["get", "c"],
-               "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], .84,
-                                ["==", ["get", "dim"], 1], .12, .6],
+               "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], .95,
+                                ["==", ["get", "dim"], 1], .10, .82],
                "fill-opacity-transition": { duration: 180 },
                "fill-color-transition": { duration: 260 } } });
     map.addLayer({ id: "a2-line", type: "line", source: "a2",
-      paint: { "line-color": ["case", ["boolean", ["feature-state", "hover"], false], C.PAL.accentHi, C.PAL.border],
-               "line-width": ["case", ["boolean", ["feature-state", "hover"], false], 2.2, .8] } });
-    map.addLayer({ id: "a2-label", type: "symbol", source: "a2", minzoom: 10.4,
-      layout: { "text-field": ["get", "name"], "text-size": 11.5, "text-allow-overlap": false },
-      paint: { "text-color": "rgba(240,236,232,.86)", "text-halo-color": C.PAL.inkHalo, "text-halo-width": 1.5 } });
+      paint: { "line-color": ["case", ["boolean", ["feature-state", "hover"], false], "#ffffff", "rgba(10,12,16,.55)"],
+               "line-width": ["case", ["boolean", ["feature-state", "hover"], false], 2.4, .7] } });
+    map.addLayer({ id: "a2-label", type: "symbol", source: "a2", minzoom: 11.2,
+      layout: { "text-field": ["get", "name"], "text-allow-overlap": false, "text-padding": 6,
+                "text-size": ["interpolate", ["linear"], ["zoom"], 11.2, 11, 14, 14],
+                "symbol-sort-key": ["-", 0, ["coalesce", ["get", "contracts"], ["get", "sales"], 0]] },
+      paint: { "text-color": "#ffffff", "text-halo-color": "rgba(8,10,14,.92)", "text-halo-width": 1.6 } });
     var hov = null;
     map.on("mousemove", "a2-fill", function (e) {
       map.getCanvas().style.cursor = "pointer";
@@ -321,6 +323,12 @@
       };
     });
   }
+  function cityVisible(on) {
+    (map.getStyle().layers || []).forEach(function (L) {
+      if (L.type !== "fill-extrusion" || L.id.indexOf("pp") === 0) return;
+      try { map.setLayoutProperty(L.id, "visibility", on ? "visible" : "none"); } catch (e) {}
+    });
+  }
   function redraw() { drawAreas(); drawPills(); if (VIEW === "bench") { ring(); benchCard(); } }
 
   M.init = function (cfg) {
@@ -337,10 +345,12 @@
     map.on("style.load", function () {
       C.darken(map);
       C.addRealBuildings(map);
+      /* A choropleth is read from above. The city model only helps on the benchmark
+         map, where you are looking at one building among its neighbours. */
+      if (VIEW !== "bench") cityVisible(false);
       drawAreas();
       drawPills();
       if (VIEW === "bench" && cfg.start) pick(cfg.start);
-      else C.orbit(map, VIEW === "bench" ? -22 : C.HOME.bearing);
     });
 
     group("[data-metric]", function (v) { METRIC = v; redraw(); });
@@ -351,11 +361,7 @@
     var td = document.getElementById("td");
     if (td) td.onchange = function () {
       map.easeTo({ pitch: td.checked ? 55 : 0, duration: 800 });
-      (map.getStyle().layers || []).forEach(function (L) {
-        if (L.type === "fill-extrusion" && L.id.indexOf("pp") !== 0) {
-          try { map.setLayoutProperty(L.id, "visibility", td.checked ? "visible" : "none"); } catch (e) {}
-        }
-      });
+      cityVisible(td.checked);
     };
     var px = document.getElementById("px");
     if (px) px.onclick = function () { document.getElementById("panel").classList.remove("on"); };
