@@ -102,7 +102,12 @@
       paint: { "line-color": ["case", ["boolean", ["feature-state", "hover"], false], "#ffffff", "rgba(10,12,16,.55)"],
                "line-width": ["case", ["boolean", ["feature-state", "hover"], false], 2.4, .7] } });
     map.addLayer({ id: "a2-label", type: "symbol", source: "a2", minzoom: 11.2,
-      layout: { "text-field": ["get", "name"], "text-allow-overlap": false, "text-padding": 6,
+      /* Naming the font is mandatory: MapLibre's default stack is "Open Sans Regular,
+         Arial Unicode MS Regular", which OpenFreeMap does not host, so the glyph
+         request 404s and the layer draws nothing at all. Noto is what the tile host
+         actually serves, and what the price pills in texcore already ask for. */
+      layout: { "text-font": ["Noto Sans Regular"],
+                "text-field": ["get", "name"], "text-allow-overlap": false, "text-padding": 6,
                 "text-size": ["interpolate", ["linear"], ["zoom"], 11.2, 11, 14, 14],
                 "symbol-sort-key": ["-", 0, ["coalesce", ["get", "contracts"], ["get", "sales"], 0]] },
       paint: { "text-color": "#ffffff", "text-halo-color": "rgba(8,10,14,.92)", "text-halo-width": 1.6 } });

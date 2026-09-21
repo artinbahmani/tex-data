@@ -150,6 +150,49 @@
   };
   C.colorFor = function (v, s) { return v > 0 ? C.ramp(C.pct(v, s)) : C.PAL.nodata; };
 
+  /* ── quantile classification ──────────────────────────────────────────────
+     A continuous rank ramp spreads 87 districts over 87 barely-different shades,
+     so two neighbouring districts look identical even when one sells at twice the
+     price of the other. Equal-count bands fix that: every district lands in one of
+     BINS classes, each class is a visibly different colour, and each class holds the
+     same number of districts, so the middle of the market is spread out instead of
+     being crushed into one copper.
+
+     Feed qstats ONLY the values that are actually drawn. Ranking over rows that
+     never reach the screen shifts every colour and makes the legend describe a map
+     nobody is looking at.                                                        */
+  C.BINS = 7;
+  C.qstats = function (vals, bins) {
+    var n = bins || C.BINS, i;
+    var v = [];
+    for (i = 0; i < vals.length; i++) { var x = +vals[i] || 0; if (x > 0) v.push(x); }
+    v.sort(function (a, b) { return a - b; });
+    var s = { bins: n, sorted: v, n: v.length, breaks: [], counts: [],
+              mn: 0, mx: 1, med: 0, avg: 0 };
+    if (!v.length) return s;
+    s.mn = v[0]; s.mx = v[v.length - 1];
+    s.med = v[Math.floor(v.length / 2)];
+    s.avg = v.reduce(function (a, b) { return a + b; }, 0) / v.length;
+    /* breaks[i] is the lowest value that falls in band i; breaks[n] is the maximum */
+    for (i = 0; i < n; i++) {
+      var lo = Math.floor(i * v.length / n);
+      s.breaks.push(v[Math.min(v.length - 1, lo)]);
+      s.counts.push(Math.floor((i + 1) * v.length / n) - lo);
+    }
+    s.breaks.push(v[v.length - 1]);
+    return s;
+  };
+  /* which band a value sits in, by rank, so ties always share a band */
+  C.qbin = function (v, s) {
+    var a = s.sorted, lo = 0, hi = a.length;
+    if (!a.length) return 0;
+    while (lo < hi) { var m = (lo + hi) >> 1; if (a[m] < v) lo = m + 1; else hi = m; }
+    return Math.max(0, Math.min(s.bins - 1, Math.floor(lo * s.bins / a.length)));
+  };
+  C.qcolor = function (v, s) {
+    return (v > 0 && s.n) ? C.ramp(C.qbin(v, s) / (s.bins - 1)) : C.PAL.nodata;
+  };
+
   /* ── repaint the base style ───────────────────────────────────────────────
      Every free vector style ships light, so the night palette is applied in code
      layer by layer rather than by hosting a style of our own.                  */
@@ -251,6 +294,28 @@
       '<div class="lgrow"><em style="background:' + C.HIGH + '"></em>Highest<b>' + fmt(Math.round(s.mx)) + '</b></div>' +
       '<div class="lgrow"><em style="background:' + C.MID + '"></em>Median<b>' + fmt(Math.round(s.med || s.avg)) + '</b></div>' +
       '<div class="lgrow"><em style="background:' + C.LOW + '"></em>Lowest<b>' + fmt(Math.round(s.mn)) + '</b></div>';
+  };
+
+  /* ── banded legend, for maps that classify with C.qstats ──
+     Shows the same hard-edged bands the map paints, the real extremes of what is
+     ON the map, and how many shapes are behind it. A legend that quotes numbers
+     belonging to rows the map never draws is worse than no legend.            */
+  C.legendBins = function (elId, label, s, fmt, note) {
+    var el = document.getElementById(elId);
+    if (!el) return;
+    if (!s.n) { el.innerHTML = '<div class="lgbar"><b>' + label + '</b></div><div class="lgnote">no data on screen</div>'; return; }
+    var n = s.bins, stops = [], i;
+    for (i = 0; i < n; i++) {
+      stops.push(C.ramp(i / (n - 1)) + " " + (i * 100 / n).toFixed(3) + "% " + ((i + 1) * 100 / n).toFixed(3) + "%");
+    }
+    var top = Math.round(s.breaks[n - 1]), bot = Math.round(s.breaks[1]);
+    el.innerHTML =
+      '<div class="lgbar"><span>Low</span><i style="background:linear-gradient(90deg,' + stops.join(",") + ')"></i><b>' + label + '</b><span>High</span></div>' +
+      '<div class="lgrow"><em style="background:' + C.ramp(1) + '"></em>Top band &middot; ' + s.counts[n - 1] + '<b>' + fmt(top) + ' +</b></div>' +
+      '<div class="lgrow"><em style="background:' + C.ramp(.5) + '"></em>Median<b>' + fmt(Math.round(s.med)) + '</b></div>' +
+      '<div class="lgrow"><em style="background:' + C.ramp(0) + '"></em>Bottom band &middot; ' + s.counts[0] + '<b>under ' + fmt(bot) + '</b></div>' +
+      '<div class="lgnote">' + n + ' equal-count bands across the ' + s.n + ' ' + (note || "shapes on the map") +
+      ' &middot; ' + fmt(Math.round(s.mn)) + ' to ' + fmt(Math.round(s.mx)) + '</div>';
   };
 
   /* ── price pills ──────────────────────────────────────────────────────────

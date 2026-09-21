@@ -1,8 +1,9 @@
 /* ============================================================================
-   TEX & TEX — Dubai Property Map. v4, 2026-09-18.
-   Two modes like the reference product, built on MapLibre + free OpenFreeMap tiles:
+   TEX & TEX — Dubai Property Map. v5, 2026-09-21.
+   Two modes, built on MapLibre + free OpenFreeMap tiles:
      Areas    — district choropleth (real OSM boundaries) + a slide-in district panel
-     Projects — the dark 3D city (real extruded buildings) + project markers
+     3D city  — the dark extruded city + a marker on every building we track
+                (mode value stays "projects"; only the label on the button changed)
    Everything is repainted to the TEX night palette in code, because every free vector
    style ships light. No API key anywhere.
    ========================================================================== */
@@ -28,19 +29,51 @@
     off:    { k: "off",    label: "Off-plan share",   fmt: C.fmtPct,   dir: "hi" }
   };
 
-  function ramp(t) { return C.ramp(t); }
-  function stats(rows) { return C.stats(rows.map(function (r) { return { v: +r[METRIC] || 0 }; }), "v"); }
-  function pct(v, s) { return C.pct(v, s); }
   function darken() { C.darken(map); }
+
+  /* Rank over the shapes that are ACTUALLY PAINTED, and classify into equal-count
+     bands. Before this the scale was built from all 131 districts in the sales feed
+     while only the 87 that own an OSM boundary ever reach the screen, so the legend
+     quoted AED 260 and AED 9,003 -- two numbers that are not on the map -- and the 87
+     that are got squeezed into a handful of near-identical shades. */
+  function scaleOf(vals) { return C.qstats(vals); }
+
+  /* ── how much ink a district is allowed ───────────────────────────────────
+     A choropleth commands attention in proportion to AREA, and Dubai's districts are
+     nowhere near the same size: six shapes over 20 km² own 57% of the painted surface,
+     and Palm Jabal Ali alone is 122 km² of reclaimed sand behind 316 sales. At full
+     strength they bury the dense core -- JVC, Business Bay, the Marina -- which is
+     where the market actually is. So the FILL fades with the log of the polygon's
+     size, and a shape with almost no market behind that size fades further still.
+     Presentation only: the outline, the label, the hover, the click and every number
+     stay exactly as they were, and the district is still selectable and comparable. */
+  var INK = { full: .86, floor: .42, small: 3, big: 135, wide: 8, sparse: 12, sparseInk: .24 };
+  function inkFor(km, sales) {
+    if (!(km > INK.small)) return { o: INK.full, sparse: 0 };
+    var t = Math.min(1, Math.log(km / INK.small) / Math.log(INK.big / INK.small));
+    var o = INK.full - (INK.full - INK.floor) * t;
+    /* The second, harder step is only for shapes that are BOTH large and empty:
+       Palm Jabal Ali is 122 km² behind 316 sales, Al Rowaiyah First is 10 km² behind
+       79. A small district with a thin market is not a cartographic problem, so it
+       keeps its colour; a large one is, because it is 2% of the screen. */
+    var sp = (km > INK.wide && (sales / km) < INK.sparse) ? 1 : 0;
+    if (sp) o = Math.min(o, INK.sparseInk);
+    return { o: Math.round(o * 100) / 100, sparse: sp };
+  }
 
   /* ── AREAS mode: real district polygons, coloured by the metric ── */
   function buildAreas() {
-    var s = stats(AREAS), by = {};
+    var by = {};
     AREAS.forEach(function (a) { by[a.dld] = a; });
+    /* only a polygon that will be drawn gets a vote in the scale */
+    var s = scaleOf(POLY.features.map(function (f) { return +(by[f.properties.dld] || {})[METRIC] || 0; }));
     POLY.features.forEach(function (f) {
       var a = by[f.properties.dld] || {};
       var v = +a[METRIC] || 0;
-      f.properties.c = v ? ramp(pct(v, s)) : C.PAL.nodata;
+      var ink = inkFor(+f.properties.km2 || 0, +a.sales || 0);
+      f.properties.c = C.qcolor(v, s);
+      f.properties.o = v ? ink.o : Math.min(ink.o, .5);
+      f.properties.faint = ink.sparse;
       f.properties.v = v;
       f.properties.name = a.n || f.properties.dld;
       f.properties.s = a.s || "";
@@ -50,18 +83,26 @@
       f.properties.exp90 = a.exp90 || 0; f.properties.val = a.val || 0;
     });
     var src = map.getSource("areas");
-    if (src) { src.setData(POLY); legend(s); return; }
+    if (src) { src.setData(POLY); legend(s, "districts on the map"); return; }
     map.addSource("areas", { type: "geojson", data: POLY });
     map.addLayer({ id: "area-fill", type: "fill", source: "areas",
       paint: { "fill-color": ["get", "c"],
-               "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], .95, .82],
+               /* hover always returns a faded district to full strength, so nothing
+                  on this map is ever too faint to read once you point at it */
+               "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], .95,
+                                ["coalesce", ["get", "o"], .82]],
                "fill-opacity-transition": { duration: 180 },
                "fill-color-transition": { duration: 260 } } });
     map.addLayer({ id: "area-line", type: "line", source: "areas",
       paint: { "line-color": ["case", ["boolean", ["feature-state", "hover"], false], "#ffffff", "rgba(10,12,16,.55)"],
                "line-width": ["case", ["boolean", ["feature-state", "hover"], false], 2.4, .7] } });
     map.addLayer({ id: "area-label", type: "symbol", source: "areas", minzoom: 11.2,
-      layout: { "text-field": ["get", "name"], "text-allow-overlap": false, "text-padding": 6,
+      /* text-font is NOT optional here. Left out, MapLibre asks the tile host for its
+         own default stack, "Open Sans Regular,Arial Unicode MS Regular", which
+         OpenFreeMap does not host: the glyph request 404s and the layer silently draws
+         nothing. Every district name on this map was missing for that reason. */
+      layout: { "text-font": ["Noto Sans Regular"],
+                "text-field": ["get", "name"], "text-allow-overlap": false, "text-padding": 6,
                 "text-size": ["interpolate", ["linear"], ["zoom"], 11.2, 11, 14, 14],
                 /* the district with the most sales wins a collision, not whichever
                    happens to be drawn last */
@@ -75,7 +116,9 @@
       map.setFeatureState({ source: "areas", id: hov }, { hover: true });
       var p = e.features[0].properties;
       TEX.showTip(e.originalEvent, "<b>" + p.name + "</b><br><s>" + METRICS[METRIC].label + ": " +
-        (p.v ? METRICS[METRIC].fmt(p.v) : "no data") + "</s><br>" + TEX.full(p.sales) + " sales this year");
+        (p.v ? METRICS[METRIC].fmt(p.v) : "no data") + "</s><br>" + TEX.full(p.sales) + " sales this year" +
+        (p.faint ? "<br><i style='opacity:.6'>drawn faint: " + Math.round(p.km2) +
+                   " km&sup2; of mostly open land behind those sales</i>" : ""));
     });
     map.on("mouseleave", "area-fill", function () {
       map.getCanvas().style.cursor = "";
@@ -83,26 +126,26 @@
       hov = null; TEX.hideTip();
     });
     map.on("click", "area-fill", function (e) { panel(e.features[0].properties, "area"); });
-    legend(s);
+    legend(s, "districts on the map");
   }
 
   /* ── PROJECTS mode: markers on the 3D city, plus real footprints where OSM has them ── */
   function buildProjects() {
     var rows = PROJECTS.filter(function (p) { return (+p[METRIC] || 0) > 0; });
-    var s = stats(rows);
+    var s = scaleOf(rows.map(function (p) { return +p[METRIC] || 0; }));
     var pts = { type: "FeatureCollection", features: rows.map(function (p) {
       var v = +p[METRIC] || 0;
       return { type: "Feature",
-        properties: { n: p.n, s: p.s, c: ramp(pct(v, s)), v: v, exact: p.src && p.src.indexOf("osm") === 0 ? 1 : 0,
+        properties: { n: p.n, s: p.s, c: C.qcolor(v, s), v: v, exact: p.src && p.src.indexOf("osm") === 0 ? 1 : 0,
                       sales: p.sales, psf: p.psf, price: p.price, off: p.off, area: p.area, exp90: p.exp90 || 0 },
         geometry: { type: "Point", coordinates: [p.lon, p.lat] } };
     }) };
     var shapes = { type: "FeatureCollection", features: rows.filter(function (p) { return p.rings; }).map(function (p) {
       var v = +p[METRIC] || 0;
-      return { type: "Feature", properties: { n: p.n, s: p.s, c: ramp(pct(v, s)), h: p.h || 90 },
+      return { type: "Feature", properties: { n: p.n, s: p.s, c: C.qcolor(v, s), h: p.h || 90 },
                geometry: { type: "Polygon", coordinates: p.rings } };
     }) };
-    if (map.getSource("proj")) { map.getSource("proj").setData(pts); map.getSource("projshape").setData(shapes); legend(s); return; }
+    if (map.getSource("proj")) { map.getSource("proj").setData(pts); map.getSource("projshape").setData(shapes); legend(s, "buildings on the map"); return; }
     map.addSource("projshape", { type: "geojson", data: shapes });
     map.addLayer({ id: "proj-shape", type: "fill-extrusion", source: "projshape", minzoom: 12.5,
       paint: { "fill-extrusion-color": ["get", "c"], "fill-extrusion-height": ["get", "h"],
@@ -116,7 +159,8 @@
                "circle-color": ["get", "c"], "circle-opacity": .9,
                "circle-stroke-width": 1.4, "circle-stroke-color": "rgba(255,255,255,.75)" } });
     map.addLayer({ id: "proj-label", type: "symbol", source: "proj", minzoom: 13,
-      layout: { "text-field": ["get", "n"], "text-size": 11, "text-offset": [0, 1.2], "text-anchor": "top" },
+      layout: { "text-font": ["Noto Sans Regular"],   /* see area-label: the default stack 404s */
+                "text-field": ["get", "n"], "text-size": 11, "text-offset": [0, 1.2], "text-anchor": "top" },
       paint: { "text-color": "rgba(255,255,255,.9)", "text-halo-color": "rgba(0,0,0,.85)", "text-halo-width": 1.4 } });
     function hov(e) {
       map.getCanvas().style.cursor = "pointer";
@@ -127,11 +171,11 @@
     map.on("mousemove", "proj-dot", hov);
     map.on("mouseleave", "proj-dot", function () { map.getCanvas().style.cursor = ""; TEX.hideTip(); });
     map.on("click", "proj-dot", function (e) { panel(e.features[0].properties, "project"); });
-    legend(s);
+    legend(s, "buildings on the map");
   }
 
-  /* ── legend: shared with every other map ── */
-  function legend(s) { C.legend("lg", METRICS[METRIC].label, s, METRICS[METRIC].fmt); }
+  /* ── legend: the bands the map actually paints, over the shapes actually drawn ── */
+  function legend(s, what) { C.legendBins("lg", METRICS[METRIC].label, s, METRICS[METRIC].fmt, what); }
 
   /* ── slide-in detail panel ── */
   function row(k, v) { return '<div class="row"><span>' + k + "</span><b>" + v + "</b></div>"; }
@@ -190,9 +234,18 @@
     if (m === "areas" && !map.getSource("areas")) buildAreas();
     else if (m === "areas") buildAreas(); else buildProjects();
     document.getElementById("panel").classList.remove("on");
-    /* The 3D city belongs to Projects. On a choropleth it is noise: towers stand on
-       top of the shapes whose colour you are trying to read. */
+    /* The 3D city belongs to the second mode. On a choropleth it is noise: towers
+       stand on top of the shapes whose colour you are trying to read. */
     cityVisible(m === "projects" && THREE_D);
+    /* ...which is why the building toggle is not on the page at all while Areas is
+       showing. It could not do anything there, and a control that does nothing when
+       you click it reads as a broken page, not as a disabled option. */
+    var tdw = document.getElementById("tdw");
+    if (tdw) {
+      tdw.style.display = (m === "projects") ? "" : "none";
+      var cb = document.getElementById("td");
+      if (cb) cb.checked = THREE_D;
+    }
     if (m === "projects") {
       var P = C.HOME3D;
       map.flyTo({ center: P.center, zoom: P.zoom, pitch: P.pitch, bearing: P.bearing, duration: 2200, curve: 1.5 });
@@ -221,6 +274,9 @@
   M.init = function (cfg) {
     CFG = cfg; AREAS = cfg.areas; PROJECTS = cfg.projects; POLY = cfg.poly;
     POLY.features.forEach(function (f, i) { f.id = i; });
+    /* handles for the headless QA in _qa/qa_map.js, which checks the legend against
+       the shapes actually on screen rather than against what we hoped we drew */
+    M.poly = POLY; M.mode = function () { return MODE; };
     map = new maplibregl.Map({
       container: "map", style: C.STYLE,
       center: HOME.center, zoom: HOME.zoom, pitch: HOME.pitch, bearing: HOME.bearing,
@@ -228,6 +284,7 @@
       antialias: true, attributionControl: { compact: true }
     });
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
+    M.map = map;
     C.observeResize(map);
     map.on("style.load", function () {
       darken(); C.addRealBuildings(map); buildAreas(); setMode(MODE);
