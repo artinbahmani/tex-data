@@ -1,4 +1,4 @@
-"# Dubai residential sales by month 2026 - TEX & TEX Real Estate, computed from Dubai Land Department open data, generated 2026-09-24. Free to republish with attribution and a link to https://data.tex.ae"
+"# Dubai residential sales by month 2026 - TEX & TEX Real Estate, computed from Dubai Land Department open data, generated 2026-09-25. Free to republish with attribution and a link to https://data.tex.ae"
 m,sales,median_psf,median_price,offplan_share
 2026-01,16887,1802,1825888,0.661
 2026-02,16245,1764,1636207,0.649
@@ -8,4 +8,4 @@ m,sales,median_psf,median_price,offplan_share
 2026-06,13519,1697,1158124,0.746
 2026-07,13218,1691,1150000,0.713
 2026-08,11373,1692,1200000,0.7
-2026-09,8553,1667,1289043,0.678
+2026-09,9009,1659,1295000,0.674
