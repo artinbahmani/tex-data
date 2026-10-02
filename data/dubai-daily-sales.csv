@@ -1,6 +1,7 @@
-"# Dubai registered residential sales per day - TEX & TEX Real Estate, computed from Dubai Land Department open data, generated 2026-10-01. Free to republish with attribution and a link to https://data.tex.ae"
+"# Dubai registered residential sales per day - TEX & TEX Real Estate, computed from Dubai Land Department open data, generated 2026-10-02. Free to republish with attribution and a link to https://data.tex.ae"
 d,sales,value,median_psf
-2026-09-30,436,1047647756,1581
+2026-10-01,389,943319115,1589
+2026-09-30,457,1081080487,1600
 2026-09-29,582,1056476667,1621
 2026-09-28,454,999977171,1705
 2026-09-27,3,6575000,1116
@@ -33,4 +34,3 @@ d,sales,value,median_psf
 2026-08-30,7,9654878,1258
 2026-08-29,58,103010039,1588
 2026-08-28,42,59330690,1672
-2026-08-27,498,1198988431,1690
