@@ -1,4 +1,4 @@
-"# Dubai buildings by registered sales 2026 - TEX & TEX Real Estate, computed from Dubai Land Department open data, generated 2026-11-08. Free to republish with attribution and a link to https://data.tex.ae"
+"# Dubai buildings by registered sales 2026 - TEX & TEX Real Estate, computed from Dubai Land Department open data, generated 2026-11-09. Free to republish with attribution and a link to https://data.tex.ae"
 project,area,sales,median_psf,median_price,offplan_share
 AZIZI VENICE 14,MADINAT AL MATAAR,1995,1650,650000,1.0
 DAMAC LAGOONS - VALENCIA,AL HEBIAH FIFTH,1369,1827,790000,1.0
@@ -35,7 +35,7 @@ DAMAC ISLANDS 2 - BAHAMAS 2,AL YELAYISS 1,479,1822,2824000,1.0
 Creek Haven,AL KHAIRAN FIRST,473,2686,1986888,1.0
 Samana Boulevard Heights,DUBAI LAND RESIDENCE COMPLEX,460,1592,825891,1.0
 DAMAC ISLANDS 2 - CUBA,AL YELAYISS 1,449,1772,2844940,1.0
-Breez by Danube,DUBAI MARITIME CITY,445,3499,1715930,1.0
+Breez by Danube,DUBAI MARITIME CITY,448,3500,1714965,1.0
 DAMAC ISLANDS 2 - BERMUDA,AL YELAYISS 1,441,1804,2903000,0.989
 Valia,AL KHAIRAN FIRST,438,2582,2325888,1.0
 LUNAYA,SAIH SHUAIB 1,432,2712,6575000,1.0
@@ -116,7 +116,7 @@ Taiyo Residences,JABAL ALI FIRST,198,1630,1047230,1.0
 Palace Residences Hillside A,HADAEQ SHEIKH MOHAMMED BIN RASHID,198,2552,2578888,1.0
 Binghatti Hillside,DUBAI SCIENCE PARK,198,2157,786999,1.0
 Nad Al Sheba Gardens Phase 11,NAD AL SHIBA FIRST,198,2332,7075000,0.51
-ASPIRZ By Danube,DUBAI SPORTS CITY,196,2288,940600,1.0
+ASPIRZ By Danube,DUBAI SPORTS CITY,197,2290,941780,1.0
 Verdana 4,DUBAI INVESTMENT PARK FIRST,193,1256,1329921,1.0
 Linea by Holm,AL SATWA,193,2601,1534448,1.0
 Holm One,AL SATWA,193,2242,1078430,1.0

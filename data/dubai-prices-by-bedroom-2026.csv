@@ -1,4 +1,4 @@
-"# Dubai median prices by district, bedroom count and property type 2026 - TEX & TEX Real Estate, computed from Dubai Land Department open data, generated 2026-11-08. Free to republish with attribution and a link to https://data.tex.ae"
+"# Dubai median prices by district, bedroom count and property type 2026 - TEX & TEX Real Estate, computed from Dubai Land Department open data, generated 2026-11-09. Free to republish with attribution and a link to https://data.tex.ae"
 area,rooms,ptype,sales,median_psf,median_price,median_sqft
 ABU HAIL,Not specified,Land,29,659,1700000,2500
 AL BADA,Not specified,Land,26,1510,5396000,3000
@@ -273,7 +273,7 @@ DUBAI MARITIME CITY,1 B/R,Unit,550,3205,2486400,775
 DUBAI MARITIME CITY,2 B/R,Unit,158,2712,3624764,1462
 DUBAI MARITIME CITY,3 B/R,Unit,32,2706,5534000,2045
 DUBAI MARITIME CITY,NA,Unit,21,4000,4699920,967
-DUBAI MARITIME CITY,Studio,Unit,345,3442,1380970,404
+DUBAI MARITIME CITY,Studio,Unit,348,3442,1381685,404
 DUBAI PRODUCTION CITY,1 B/R,Unit,1067,1305,1078296,791
 DUBAI PRODUCTION CITY,2 B/R,Unit,428,1274,1580000,1221
 DUBAI PRODUCTION CITY,3 B/R,Unit,80,1285,2181298,1736
@@ -293,10 +293,10 @@ DUBAI SOUTH,Studio,Unit,356,1326,530000,403
 DUBAI SPORTS CITY,1 B/R,Unit,724,1238,995360,795
 DUBAI SPORTS CITY,2 B/R,Unit,537,1282,1576440,1226
 DUBAI SPORTS CITY,3 B/R,Unit,66,1312,2193391,1632
-DUBAI SPORTS CITY,NA,Unit,109,2364,923520,396
+DUBAI SPORTS CITY,NA,Unit,110,2366,924760,396
 DUBAI SPORTS CITY,Not specified,Land,7,1630,4550000,2659
 DUBAI SPORTS CITY,Office,Unit,6,1481,588118,353
-DUBAI SPORTS CITY,Studio,Unit,785,1409,605571,424
+DUBAI SPORTS CITY,Studio,Unit,786,1409,605444,424
 DUBAI STUDIO CITY,1 B/R,Unit,399,1462,1016000,683
 DUBAI STUDIO CITY,2 B/R,Unit,63,1319,1482160,1153
 DUBAI STUDIO CITY,3 B/R,Unit,8,972,1500000,1511
